@@ -157,23 +157,23 @@ local FollowNode = {
       TraceAI 'FOLLOW -> IsOutOfSight'
       return STATUS.failure
     end
-    if GetDistanceFromOwner(MyID) > 2 then
+    if GetDistanceFromOwner(MyID) >= 3 then
       TraceAI 'FOLLOW -> MoveToOwner'
       MoveToOwner(MyID)
       return STATUS.running
     end
-    TraceAI 'FOLLOW -> SUCCESS'
-    return STATUS.success
+    TraceAI 'FOLLOW -> FAILURE'
+    return STATUS.failure
   end,
 }
 
 local IdleNode = {}
 IdleNode.update = function()
   TraceAI 'IDLE'
-  -- if GetV(V_MOTION, MyOwner) == MOTION_SIT then
-  --   TraceAI 'IDLE -> MOTION_SIT'
-  --   return STATUS.success
-  -- end
+  if GetV(V_MOTION, MyOwner) == MOTION_SIT then
+    TraceAI 'IDLE -> MOTION_SIT'
+    return STATUS.failure
+  end
   TraceAI 'IDLE -> SUCCESS'
   return STATUS.success
 end
