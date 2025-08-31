@@ -1,56 +1,219 @@
 require 'AI.USER_AI.HOMUN.Const'
 require 'AI.USER_AI.HOMUN.Util'
-ResCmdList = List.new() -- List of queued commands
-require 'AI.USER_AI.HOMUN.CMD'
-require 'AI.USER_AI.HOMUN.ST'
 
-function AI(myid)
-  CurrentTime = GetTick()
-  MyID = myid
-  MyOwner = GetV(V_OWNER, myid)
-  local msg = GetMsg(myid) -- command
-  local rmsg = GetResMsg(myid) -- reserved command
+-- BEHAVIOR TREE
+-- LEARN MORE: https://youtu.be/gXrKGTPwfO8?si=i-x-jRQch6dJcmjI
 
-  if msg[1] == NONE_CMD then
-    if rmsg[1] ~= NONE_CMD then
-      if List.size(ResCmdList) < 10 then
-        List.pushright(ResCmdList, rmsg)
+---@enum status
+STATUS = {
+  running = 1,
+  success = 2,
+  failure = 3,
+}
+
+---@class Node
+---@field new ?fun(self: Node, children: Node[]): Node
+---@field children Node[]?
+---@field update fun(self: Node): status
+---@field idx ?number
+
+---AI, stop in the first failure, actions in sequence
+---ENEMY -> CHASE -> ATTACK
+---@type Node
+local Sequence = {
+  idx = 1,
+  children = nil,
+  update = function(self)
+    while self.idx <= #self.children do
+      local child = self.children[self.idx]
+      local status = child:update()
+      if status == STATUS.running then
+        TraceAI 'SEQUENCE -> RUNNING'
+        return STATUS.running
+      elseif status == STATUS.failure then
+        TraceAI 'SEQUENCE -> FAILURE'
+        self.idx = 1
+        return STATUS.failure
+      else -- success
+        TraceAI 'SEQUENCE -> SUCCESS -> +1'
+        self.idx = self.idx + 1
       end
     end
-  else
-    List.clear(ResCmdList)
-    ProcessCommand(msg)
-  end
+    self.idx = 1
+    TraceAI 'SEQUENCE -> SUCCESS -> 1'
+    return STATUS.success
+  end,
+  new = function(self, children)
+    local obj = {
+      children = children or {},
+      idx = 1,
+    }
+    setmetatable(obj, self)
+    self.__index = self
+    return obj
+  end,
+}
 
-  if MyState == IDLE_ST then
-    OnIDLE_ST()
-  elseif MyState == CHASE_ST then
-    OnCHASE_ST()
-  elseif MyState == ATTACK_ST then
-    OnATTACK_ST()
-  elseif MyState == FOLLOW_ST then
-    OnFOLLOW_ST()
-  elseif MyState == PATROL_ST then
-    OnPATROL_ST()
-  elseif MyState == MOVE_CMD_ST then
-    OnMOVE_CMD_ST()
-  elseif MyState == STOP_CMD_ST then
-    OnSTOP_CMD_ST()
-  elseif MyState == ATTACK_OBJECT_CMD_ST then
-    OnATTACK_OBJECT_CMD_ST()
-  elseif MyState == ATTACK_AREA_CMD_ST then
-    OnATTACK_AREA_CMD_ST()
-  elseif MyState == PATROL_CMD_ST then
-    OnPATROL_CMD_ST()
-  elseif MyState == HOLD_CMD_ST then
-    OnHOLD_CMD_ST()
-  elseif MyState == SKILL_OBJECT_CMD_ST then
-    OnSKILL_OBJECT_CMD_ST()
-  elseif MyState == SKILL_AREA_CMD_ST then
-    OnSKILL_AREA_CMD_ST()
-  elseif MyState == FOLLOW_CMD_ST then
-    OnFOLLOW_CMD_ST()
-  else
-    OnIDLE_ST()
-  end
+---AI, do only one action at time
+---SEQUENCE | FOLLOW | PATROL | IDLE
+---@type Node
+local Selector = {
+  idx = 1,
+  new = function(self, children)
+    local obj = {
+      children = children or {},
+      idx = 1,
+    }
+    setmetatable(obj, self)
+    self.__index = self
+    return obj
+  end,
+  update = function(self)
+    TraceAI 'SELECTOR'
+    while self.idx <= #self.children do
+      local status = self.children[self.idx]:update()
+      if status == STATUS.success then
+        TraceAI 'SELECTOR -> SUCCESS'
+        self.idx = 1
+        return STATUS.success
+      elseif status == STATUS.running then
+        TraceAI 'SELECTOR -> RUNNING'
+        return STATUS.running
+      else
+        TraceAI 'SELECTOR -> SUCCESS -> +1'
+        self.idx = self.idx + 1
+      end
+    end
+
+    self.idx = 1
+    TraceAI 'SELECTOR -> FAILURE'
+    return STATUS.failure
+  end,
+}
+
+-- local Command = {}
+-- Command.update = function()
+--   local cmd = List.popleft(ResCmdList)
+--   if cmd ~= nil then
+--     ProcessCommand(cmd)
+--     return STATUS.success
+--   end
+--   return STATUS.failure
+-- end
+
+---@type Node
+local AttackEnemy = {
+  update = function(_)
+    TraceAI 'ATTACK_ENEMY'
+    if MyEnemy == 0 or IsOutOfSight(MyID, MyEnemy) then
+      TraceAI 'ATTACK_ENEMY -> IsOutOfSight'
+      return STATUS.failure
+    end
+    if MOTION_DEAD == GetV(MOTION_DEAD, MyEnemy) then
+      TraceAI 'ATTACK_ENEMY -> DEAD'
+      return STATUS.success
+    end
+    TraceAI 'ATTACK_ENEMY -> ATTACK'
+    Attack(MyID, MyEnemy)
+    return STATUS.running
+  end,
+}
+
+---@type Node
+local GetEnemyNode = {
+  update = function()
+    MyEnemy = GetOwnerEnemy(MyID)
+    if MyEnemy == 0 then
+      MyEnemy = GetMyEnemy(MyID)
+    end
+    if MyEnemy == 0 then
+      return STATUS.failure
+    end
+    return STATUS.success
+  end,
+}
+
+---@type Node
+local ChaseEnemy = {
+  update = function()
+    TraceAI 'CHASE_ENEMY'
+    if IsInAttackSight(MyID, MyEnemy) then
+      TraceAI 'CHASE_ENEMY -> IsInAttackSight'
+      return STATUS.success
+    end
+    if IsOutOfSight(MyID, MyEnemy) then
+      TraceAI 'CHASE_ENEMY -> IsOutOfSight'
+      return STATUS.failure
+    end
+    TraceAI 'CHASE_ENEMY -> Running'
+    return STATUS.running
+  end,
+}
+
+local FollowNode = {
+  update = function(_)
+    TraceAI 'FOLLOW'
+    if IsOutOfSight(MyID, MyOwner) then
+      TraceAI 'FOLLOW -> IsOutOfSight'
+      return STATUS.failure
+    end
+    if GetDistanceFromOwner(MyID) > 2 then
+      TraceAI 'FOLLOW -> MoveToOwner'
+      MoveToOwner(MyID)
+      return STATUS.running
+    end
+    TraceAI 'FOLLOW -> SUCCESS'
+    return STATUS.success
+  end,
+}
+
+local IdleNode = {}
+IdleNode.update = function()
+  TraceAI 'IDLE'
+  -- if GetV(V_MOTION, MyOwner) == MOTION_SIT then
+  --   TraceAI 'IDLE -> MOTION_SIT'
+  --   return STATUS.success
+  -- end
+  TraceAI 'IDLE -> SUCCESS'
+  return STATUS.success
+end
+
+local PatrolNode = {
+  update = function(_)
+    TraceAI 'PATROL'
+    local cooldown = math.random(10) -- x seconds
+    if (CurrentTime - LastTimePatrol) > cooldown then
+      local destX, destY = GetV(V_POSITION, MyOwner)
+      local randomX = math.random(-10, 10)
+      local randomY = math.random(-10, 10)
+      destX = destX + randomX
+      destY = destY + randomY
+      TraceAI 'PATROL -> MOVE'
+      Move(MyID, destX, destY)
+      LastTimePatrol = CurrentTime
+      return STATUS.success
+    end
+    TraceAI 'PATROL -> RUNNING'
+    return STATUS.running
+  end,
+}
+
+---@type Node
+local root = Selector:new {
+  -- Command,
+  Sequence:new {
+    GetEnemyNode,
+    ChaseEnemy,
+    AttackEnemy,
+  },
+  FollowNode,
+  IdleNode,
+  PatrolNode,
+}
+
+function AI(myid)
+  CurrentTime = GetTick() / 1000 -- seconds
+  MyID = myid
+  MyOwner = GetV(V_OWNER, myid)
+  root:update()
 end
