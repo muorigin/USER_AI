@@ -145,7 +145,7 @@ local AttackEnemy = {
     end
     Attack(MyID, MyEnemy)
     TraceAI 'ATTACK_ENEMY -> ATTACK'
-    return STATUS.success
+    return STATUS.running
   end,
 }
 
@@ -241,12 +241,6 @@ local PatrolNode = {
 
 ---@type Node
 local root = Selector:new {
-  CommandNode,
-  Sequence:new {
-    GetEnemyNode,
-    ChaseEnemy,
-    AttackEnemy,
-  },
   FollowNode,
   IdleNode,
   PatrolNode,
@@ -256,5 +250,19 @@ function AI(myid)
   CurrentTime = GetTick() / 1000 -- seconds
   MyID = myid
   MyOwner = GetV(V_OWNER, myid)
-  root:update()
+
+  local cmdStatus = CommandNode:update()
+  if cmdStatus == STATUS.running or cmdStatus == STATUS.success then
+    return
+  end
+
+  local sequence = Sequence:new {
+    GetEnemyNode,
+    ChaseEnemy,
+    AttackEnemy,
+  }
+  local status = sequence:update()
+  if status ~= STATUS.running then
+    root:update()
+  end
 end
