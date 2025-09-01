@@ -1,6 +1,6 @@
 require 'AI.USER_AI.HOMUN.Const'
 require 'AI.USER_AI.HOMUN.Util'
-
+require 'AI.USER_AI.HOMUN.CMD'
 -- BEHAVIOR TREE
 -- LEARN MORE: https://youtu.be/gXrKGTPwfO8?si=i-x-jRQch6dJcmjI
 
@@ -91,15 +91,44 @@ local Selector = {
   end,
 }
 
--- local Command = {}
--- Command.update = function()
---   local cmd = List.popleft(ResCmdList)
---   if cmd ~= nil then
---     ProcessCommand(cmd)
---     return STATUS.success
---   end
---   return STATUS.failure
--- end
+ResCmdList = List.new()
+local CommandNode = {
+  CurrentCommand = nil,
+  update = function(self)
+    local msg = GetMsg(MyID)
+    local rmsg = GetResMsg(MyID)
+
+    if msg[1] ~= NONE_CMD then
+      List.clear(ResCmdList)
+      ProcessCommand(msg)
+      self.CurrentCommand = msg
+    elseif rmsg[1] ~= NONE_CMD and List.size(ResCmdList) < 10 then
+      List.pushright(ResCmdList, rmsg)
+    end
+
+    if not self.CurrentCommand then
+      self.CurrentCommand = List.popleft(ResCmdList)
+    end
+
+    if self.CurrentCommand then
+      ProcessCommand(self.CurrentCommand)
+      if self.CurrentCommand[1] == MOVE_CMD then
+        local x, y = self.CurrentCommand[2], self.CurrentCommand[3]
+        local curX, curY = GetV(V_POSITION, MyID)
+        if math.abs(curX - x) <= 1 and math.abs(curY - y) <= 1 then
+          self.CurrentCommand = nil
+          return STATUS.success
+        else
+          return STATUS.running
+        end
+      else
+        self.CurrentCommand = nil
+        return STATUS.success
+      end
+    end
+    return STATUS.failure
+  end,
+}
 
 ---@type Node
 local AttackEnemy = {
@@ -200,7 +229,7 @@ local PatrolNode = {
 
 ---@type Node
 local root = Selector:new {
-  -- Command,
+  CommandNode,
   Sequence:new {
     GetEnemyNode,
     ChaseEnemy,
