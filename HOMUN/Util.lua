@@ -240,7 +240,7 @@ function GetMyEnemyA(myid)
     end
   end
 
-  local min_dis = 100
+  local min_dis = 16
   local dis
   for _, v in ipairs(enemys) do
     dis = GetDistance2(myid, v)
@@ -272,7 +272,7 @@ function GetMyEnemyB(myid)
     end
   end
 
-  local min_dis = 100
+  local min_dis = 16
   local dis
   for i, v in ipairs(enemys) do
     dis = GetDistance2(myid, v)

@@ -134,6 +134,10 @@ local CommandNode = {
 local AttackEnemy = {
   update = function(_)
     TraceAI 'ATTACK_ENEMY'
+    if GetDistanceFromOwner(MyID) > 10 then
+      TraceAI 'ATTACK_ENEMY -> TooFarFromOwner'
+      return STATUS.failure
+    end
     if MyEnemy == 0 or IsOutOfSight(MyID, MyEnemy) then
       TraceAI 'ATTACK_ENEMY -> OutOfSight'
       return STATUS.failure
@@ -167,18 +171,15 @@ local GetEnemyNode = {
 local ChaseEnemy = {
   update = function()
     TraceAI 'CHASE_ENEMY'
-
     if IsInAttackSight(MyID, MyEnemy) then
       TraceAI 'CHASE_ENEMY -> In Attack Range'
       return STATUS.success
     end
-
     if IsOutOfSight(MyID, MyEnemy) then
       TraceAI 'CHASE_ENEMY -> Out of Sight'
       MyDestX, MyDestY = 0, 0
       return STATUS.failure
     end
-
     local enemyX, enemyY = GetV(V_POSITION, MyEnemy)
     if MyDestX ~= enemyX or MyDestY ~= enemyY then
       MyDestX, MyDestY = enemyX, enemyY
@@ -186,8 +187,8 @@ local ChaseEnemy = {
       TraceAI 'CHASE_ENEMY -> RUNNING'
       return STATUS.running
     end
-    TraceAI 'CHASE_ENEMY -> SUCCESS'
-    return STATUS.success
+    TraceAI 'CHASE_ENEMY -> RUNNING'
+    return STATUS.running
   end,
 }
 
