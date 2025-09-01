@@ -145,7 +145,7 @@ local AttackEnemy = {
     end
     Attack(MyID, MyEnemy)
     TraceAI 'ATTACK_ENEMY -> ATTACK'
-    return STATUS.running
+    return STATUS.success
   end,
 }
 
