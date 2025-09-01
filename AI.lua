@@ -135,15 +135,16 @@ local AttackEnemy = {
   update = function(_)
     TraceAI 'ATTACK_ENEMY'
     if MyEnemy == 0 or IsOutOfSight(MyID, MyEnemy) then
-      TraceAI 'ATTACK_ENEMY -> IsOutOfSight'
+      TraceAI 'ATTACK_ENEMY -> OutOfSight'
       return STATUS.failure
     end
     if MOTION_DEAD == GetV(MOTION_DEAD, MyEnemy) then
       TraceAI 'ATTACK_ENEMY -> DEAD'
+      MyEnemy = 0
       return STATUS.success
     end
-    TraceAI 'ATTACK_ENEMY -> ATTACK'
     Attack(MyID, MyEnemy)
+    TraceAI 'ATTACK_ENEMY -> ATTACK'
     return STATUS.running
   end,
 }
