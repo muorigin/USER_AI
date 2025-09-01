@@ -166,16 +166,27 @@ local GetEnemyNode = {
 local ChaseEnemy = {
   update = function()
     TraceAI 'CHASE_ENEMY'
+
     if IsInAttackSight(MyID, MyEnemy) then
-      TraceAI 'CHASE_ENEMY -> IsInAttackSight'
+      TraceAI 'CHASE_ENEMY -> In Attack Range'
       return STATUS.success
     end
+
     if IsOutOfSight(MyID, MyEnemy) then
-      TraceAI 'CHASE_ENEMY -> IsOutOfSight'
+      TraceAI 'CHASE_ENEMY -> Out of Sight'
+      MyDestX, MyDestY = 0, 0
       return STATUS.failure
     end
-    TraceAI 'CHASE_ENEMY -> Running'
-    return STATUS.running
+
+    local enemyX, enemyY = GetV(V_POSITION, MyEnemy)
+    if MyDestX ~= enemyX or MyDestY ~= enemyY then
+      MyDestX, MyDestY = enemyX, enemyY
+      Move(MyID, MyDestX, MyDestY)
+      TraceAI 'CHASE_ENEMY -> RUNNING'
+      return STATUS.running
+    end
+    TraceAI 'CHASE_ENEMY -> SUCCESS'
+    return STATUS.success
   end,
 }
 
