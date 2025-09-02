@@ -310,8 +310,3 @@ end
 function GetMaxSp(id)
   return GetV(V_MAXSP, id)
 end
-
----@param enemyId number
-function EnemyIsOutOfSight(enemyId)
-  return enemyId == -1
-end

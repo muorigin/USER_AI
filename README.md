@@ -53,3 +53,4 @@ graph TD
 - [ ] Skill in area only for multiple monsters
 - [ ] PVP and WOE
 - [ ] Userconfig (GUI or WEB)
+- [ ] User Commands

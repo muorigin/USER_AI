@@ -134,10 +134,6 @@ local CommandNode = {
 local AttackEnemyNode = {
   update = function(_)
     TraceAI 'ATTACK_ENEMY'
-    if GetDistanceFromOwner(MyID) > 7 then
-      TraceAI 'ATTACK_ENEMY -> Too Far From Owner'
-      return STATUS.failure
-    end
     if MyEnemy == 0 or IsOutOfSight(MyID, MyEnemy) then
       TraceAI 'ATTACK_ENEMY -> OutOfSight'
       return STATUS.failure
@@ -157,10 +153,14 @@ local AttackEnemyNode = {
 local GetEnemyNode = {
   update = function()
     MyEnemy = GetOwnerEnemy(MyID)
-    if MyEnemy == 0 then
+    if MyEnemy == 0 or MyEnemy == -1 then
       MyEnemy = GetMyEnemy(MyID)
     end
-    if MyEnemy == 0 then
+    if MyEnemy == 0 or MyEnemy == -1 then
+      return STATUS.failure
+    end
+    if IsOutOfSight(MyID, MyEnemy) then
+      MyEnemy = 0
       return STATUS.failure
     end
     return STATUS.success
@@ -177,6 +177,7 @@ local ChaseEnemyNode = {
     end
     if IsOutOfSight(MyID, MyEnemy) then
       TraceAI 'CHASE_ENEMY -> Out of Sight'
+      MyEnemy = 0
       MyDestX, MyDestY = 0, 0
       return STATUS.failure
     end
@@ -195,25 +196,25 @@ local ChaseEnemyNode = {
 local FollowNode = {
   update = function(_)
     TraceAI 'FOLLOW'
-    if IsOutOfSight(MyID, MyOwner) then
-      TraceAI 'FOLLOW -> IsOutOfSight'
-      return STATUS.failure
-    end
     if GetDistanceFromOwner(MyID) >= 3 then
       TraceAI 'FOLLOW -> MoveToOwner'
       MoveToOwner(MyID)
       return STATUS.running
     end
-    TraceAI 'FOLLOW -> FAILURE'
-    return STATUS.failure
+    if IsOutOfSight(MyID, MyOwner) then
+      TraceAI 'FOLLOW -> IsOutOfSight'
+      return STATUS.failure
+    end
+    TraceAI 'FOLLOW -> SUCCESS'
+    return STATUS.success
   end,
 }
 
 local IdleNode = {}
 IdleNode.update = function()
   TraceAI 'IDLE'
-  if GetV(V_MOTION, MyOwner) == MOTION_SIT then
-    TraceAI 'IDLE -> MOTION_SIT'
+  if GetV(V_MOTION, MyOwner) ~= MOTION_STAND then
+    TraceAI 'IDLE -> OWNER DOING SOMETHING'
     return STATUS.failure
   end
   TraceAI 'IDLE -> SUCCESS'
@@ -223,6 +224,10 @@ end
 local PatrolNode = {
   update = function(_)
     TraceAI 'PATROL'
+    if GetV(V_MOTION, MyOwner) ~= MOTION_SIT then
+      TraceAI 'PATROL -> OWNER NOT SITTING'
+      return STATUS.failure
+    end
     local cooldown = math.random(10) -- x seconds
     if (CurrentTime - LastTimePatrol) > cooldown then
       local destX, destY = GetV(V_POSITION, MyOwner)
@@ -233,6 +238,7 @@ local PatrolNode = {
       TraceAI 'PATROL -> MOVE'
       Move(MyID, destX, destY)
       LastTimePatrol = CurrentTime
+      TraceAI 'PATROL -> SUCCESS'
       return STATUS.success
     end
     TraceAI 'PATROL -> RUNNING'
@@ -242,21 +248,19 @@ local PatrolNode = {
 
 ---@type Node
 local root = Selector:new {
-  FollowNode,
   IdleNode,
   PatrolNode,
+  FollowNode,
 }
 
 function AI(myid)
   CurrentTime = GetTick() / 1000 -- seconds
   MyID = myid
   MyOwner = GetV(V_OWNER, myid)
-
   local cmdStatus = CommandNode:update()
   if cmdStatus == STATUS.running or cmdStatus == STATUS.success then
     return
   end
-
   local sequence = Sequence:new {
     GetEnemyNode,
     ChaseEnemyNode,
