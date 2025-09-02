@@ -50,6 +50,6 @@ graph TD
 - [ ] SkillS
 - [ ] Cooldown System
 - [ ] Detect MVP (For Sera and Eleanor)
-- [ ] Skill area in are only for multiple monsters
+- [ ] Skill in area only for multiple monsters
 - [ ] PVP and WOE
 - [ ] Userconfig (GUI or WEB)
