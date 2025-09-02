@@ -6,7 +6,7 @@
 - [Homunculus](https://browiki.org/wiki/Homunculus)
 - [Instalação](https://browiki.org/wiki/Homunculus#AI)
 
-### Homunculus Evolution Chart"
+### Homunculus Evolution Chart
 
 ```mermaid
 graph TD
@@ -32,14 +32,24 @@ graph TD
 
 - [User guide](https://github.com/maxmx03/USER_AI/blob/main/Homunculus%20AI%20Script%20User%20Guide.md)
 
-## Task
+## Todo-list
 
-- [ ] Lif
-- [ ] Amistr
-- [ ] Filir
-- [ ] Vanilmirth
-- [ ] Bayeri
-- [ ] Dieter
-- [ ] Eira
-- [ ] Sera
-- [ ] Eleanor
+- [x] Behavior Basic Implementation
+- [ ] Behavior Tree Performance
+- [ ] Homunculus
+  - [ ] Lif
+  - [ ] Amistr
+  - [ ] Filir
+  - [ ] Vanilmirth
+  - [ ] Bayeri
+  - [ ] Dieter
+  - [ ] Eira
+  - [ ] Sera
+  - [ ] Eleanor
+    - [ ] Combo
+- [ ] SkillS
+- [ ] Cooldown System
+- [ ] Detect MVP (For Sera and Eleanor)
+- [ ] Skill in are only for multiple monsters
+- [ ] PVP and WOE
+- [ ] Userconfig (GUI or WEB)

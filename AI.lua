@@ -131,11 +131,11 @@ local CommandNode = {
 }
 
 ---@type Node
-local AttackEnemy = {
+local AttackEnemyNode = {
   update = function(_)
     TraceAI 'ATTACK_ENEMY'
-    if GetDistanceFromOwner(MyID) > 10 then
-      TraceAI 'ATTACK_ENEMY -> TooFarFromOwner'
+    if GetDistanceFromOwner(MyID) > 7 then
+      TraceAI 'ATTACK_ENEMY -> Too Far From Owner'
       return STATUS.failure
     end
     if MyEnemy == 0 or IsOutOfSight(MyID, MyEnemy) then
@@ -168,7 +168,7 @@ local GetEnemyNode = {
 }
 
 ---@type Node
-local ChaseEnemy = {
+local ChaseEnemyNode = {
   update = function()
     TraceAI 'CHASE_ENEMY'
     if IsInAttackSight(MyID, MyEnemy) then
@@ -259,8 +259,8 @@ function AI(myid)
 
   local sequence = Sequence:new {
     GetEnemyNode,
-    ChaseEnemy,
-    AttackEnemy,
+    ChaseEnemyNode,
+    AttackEnemyNode,
   }
   local status = sequence:update()
   if status ~= STATUS.running then
