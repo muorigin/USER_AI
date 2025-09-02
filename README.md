@@ -34,8 +34,8 @@ graph TD
 
 ## Todo-list
 
-- [x] Behavior Basic Implementation
-- [ ] Behavior Tree Performance
+- [x] Behavior-Tree Basic Implementation
+- [ ] Behavior-Tree Performance
 - [ ] Homunculus
   - [ ] Lif
   - [ ] Amistr
@@ -50,6 +50,6 @@ graph TD
 - [ ] SkillS
 - [ ] Cooldown System
 - [ ] Detect MVP (For Sera and Eleanor)
-- [ ] Skill in are only for multiple monsters
+- [ ] Skill area in are only for multiple monsters
 - [ ] PVP and WOE
 - [ ] Userconfig (GUI or WEB)
