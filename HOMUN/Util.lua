@@ -214,8 +214,10 @@ end
 
 function GetMyEnemy(myid)
   local result = GetMyEnemyA(myid)
-  if result == 0 then
-    result = GetMyEnemyB(myid)
+  if GetMaxHp(MyID) > GetMaxHp(MyOwner) then
+    if result == 0 then
+      result = GetMyEnemyB(myid)
+    end
   end
   return result
 end

@@ -27,6 +27,13 @@ local Sequence = {
     while self.idx <= #self.children do
       local child = self.children[self.idx]
       local status = child:update()
+
+      --- BREAK SEQUENCE WHEN OWNER IS MOVING AWAY FROM ENEMY
+      if GetDistanceFromOwner(MyID) >= 10 and GetV(V_MOTION, MyOwner) == MOTION_MOVE then
+        self.idx = 1
+        return STATUS.failure
+      end
+
       if status == STATUS.running then
         TraceAI 'SEQUENCE -> RUNNING'
         return STATUS.running
