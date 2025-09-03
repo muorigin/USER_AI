@@ -98,6 +98,7 @@ local Selector = {
   end,
 }
 
+-- TODO: Implement Commands
 ResCmdList = List.new()
 local CommandNode = {
   CurrentCommand = nil,
@@ -141,8 +142,15 @@ local CommandNode = {
 local AttackEnemyNode = {
   update = function(_)
     TraceAI 'ATTACK_ENEMY'
+
+    if not IsInAttackSight(MyID, MyEnemy) then
+      TraceAI 'ATTACK_ENEMY -> IS NOT IN ATTACK SIGHT'
+      return STATUS.failure
+    end
+
     if MyEnemy == 0 or IsOutOfSight(MyID, MyEnemy) then
       TraceAI 'ATTACK_ENEMY -> OutOfSight'
+      MyEnemy = 0
       return STATUS.failure
     end
     if MOTION_DEAD == GetV(MOTION_DEAD, MyEnemy) then
@@ -203,7 +211,7 @@ local ChaseEnemyNode = {
 local FollowNode = {
   update = function(_)
     TraceAI 'FOLLOW'
-    if GetDistanceFromOwner(MyID) >= 3 then
+    if GetDistanceFromOwner(MyID) > 3 then
       TraceAI 'FOLLOW -> MoveToOwner'
       MoveToOwner(MyID)
       return STATUS.running
@@ -260,6 +268,24 @@ local root = Selector:new {
   FollowNode,
 }
 
+-- TODO: Homunculus Nodes
+-- local Eleanor = Selector:new {
+--   AttackEnemyNode,
+--   AttackCombatStyle1,
+--   AttackCombatStyle2,
+-- }
+
+-- FIX: Maybe fallback is a better choice here
+local sequence = Sequence:new {
+  GetEnemyNode,
+  ChaseEnemyNode,
+  AttackEnemyNode, -- temporary
+  -- Eleanor,
+  -- Eira,
+  -- Sera,
+  -- Dieter
+}
+
 function AI(myid)
   CurrentTime = GetTick() / 1000 -- seconds
   MyID = myid
@@ -268,11 +294,6 @@ function AI(myid)
   if cmdStatus == STATUS.running or cmdStatus == STATUS.success then
     return
   end
-  local sequence = Sequence:new {
-    GetEnemyNode,
-    ChaseEnemyNode,
-    AttackEnemyNode,
-  }
   local status = sequence:update()
   if status ~= STATUS.running then
     root:update()
