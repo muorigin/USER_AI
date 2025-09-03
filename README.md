@@ -10,13 +10,14 @@
 
 ```mermaid
 graph TD
-    LIF --> EIRA
-    LIF --> SERA
-    Amistr --> Bayeri
-    Amistr --> Dieter
-    Amistr --> Eleanor
+    LIF --> Sera
+    LIF --> Eira
+    Filir --> Eira
+    Filir --> Bayeri
     Filir --> Eleanor
-    Filir --> EIRA
+    Amistr --> Bayeri
+    Amistr --> Eleanor
+    Amistr --> Dieter
     Vanilmirth --> ANY
 ```
 
