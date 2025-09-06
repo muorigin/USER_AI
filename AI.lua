@@ -1,3 +1,4 @@
+require 'AI.USER_AI.config'
 require 'AI.USER_AI.HOMUN.Const'
 require 'AI.USER_AI.HOMUN.Util'
 require 'AI.USER_AI.HOMUN.CMD'
@@ -27,13 +28,6 @@ local Sequence = {
     while self.idx <= #self.children do
       local child = self.children[self.idx]
       local status = child:update()
-
-      --- BREAK SEQUENCE WHEN OWNER IS MOVING AWAY FROM ENEMY
-      if GetDistanceFromOwner(MyID) >= 10 and GetV(V_MOTION, MyOwner) == MOTION_MOVE then
-        self.idx = 1
-        return STATUS.failure
-      end
-
       if status == STATUS.running then
         TraceAI 'SEQUENCE -> RUNNING'
         return STATUS.running
@@ -142,13 +136,11 @@ local CommandNode = {
 local AttackEnemyNode = {
   update = function(_)
     TraceAI 'ATTACK_ENEMY'
-
     if not IsInAttackSight(MyID, MyEnemy) then
       TraceAI 'ATTACK_ENEMY -> IS NOT IN ATTACK SIGHT'
       return STATUS.failure
     end
-
-    if MyEnemy == 0 or IsOutOfSight(MyID, MyEnemy) then
+    if MyEnemy < 1 or IsOutOfSight(MyID, MyEnemy) then
       TraceAI 'ATTACK_ENEMY -> OutOfSight'
       MyEnemy = 0
       return STATUS.failure
@@ -168,10 +160,10 @@ local AttackEnemyNode = {
 local GetEnemyNode = {
   update = function()
     MyEnemy = GetOwnerEnemy(MyID)
-    if MyEnemy == 0 or MyEnemy == -1 then
+    if MyEnemy < 1 then
       MyEnemy = GetMyEnemy(MyID)
     end
-    if MyEnemy == 0 or MyEnemy == -1 then
+    if MyEnemy < 1 then
       return STATUS.failure
     end
     if IsOutOfSight(MyID, MyEnemy) then
@@ -250,7 +242,6 @@ local PatrolNode = {
       local randomY = math.random(-10, 10)
       destX = destX + randomX
       destY = destY + randomY
-      TraceAI 'PATROL -> MOVE'
       Move(MyID, destX, destY)
       LastTimePatrol = CurrentTime
       TraceAI 'PATROL -> SUCCESS'
@@ -261,6 +252,179 @@ local PatrolNode = {
   end,
 }
 
+---@enum BattleMode
+BATTLE_MODE = {
+  BATTLE = 1,
+  CLAW = 2,
+  CURRENT = 1,
+}
+
+---@param mySkill number
+---@param mySkillInfo Skill
+---@param battleMode BattleMode
+---@param sphereCost number
+local EleonorSkillCast = function(mySkill, mySkillInfo, battleMode, sphereCost)
+  if MyLevel < mySkillInfo.level_requirement then
+    return STATUS.failure
+  end
+  local sp = mySkillInfo.sp(mySkillInfo.level)
+  local cd = mySkillInfo.cooldown(mySkillInfo.level)
+  local lastTime = MyCooldown[MySkillKey][mySkill] or 0
+
+  if not CanUseSkill(CurrentTime, lastTime, cd) then
+    return STATUS.failure
+  end
+  if not HasEnoughSp(sp) then
+    return STATUS.failure
+  end
+  if BATTLE_MODE.CURRENT ~= battleMode then
+    return STATUS.failure
+  end
+  if sphereCost > MySpheres then
+    return STATUS.failure
+  end
+  if not IsInAttackSight(MyID, MyEnemy) then
+    return STATUS.failure
+  end
+
+  local sk = { level = mySkillInfo.level, id = mySkill, cooldown = cd, lastTime = lastTime, currentTime = CurrentTime }
+  local casted = CastSkill(MyID, MyEnemy, sk)
+  if casted then
+    MyCooldown[MySkillKey][mySkill] = CurrentTime
+    MySpheres = MySpheres - sphereCost
+    return STATUS.success
+  end
+  return STATUS.failure
+end
+
+---@type Node
+local SwitchBattleMode = {
+  update = function(_)
+    if math.random(2) ~= 1 then
+      return STATUS.failure
+    end
+
+    local skillInfo = MySkills[MySkillKey][MH_STYLE_CHANGE]
+    local level = skillInfo.level
+    local sp = skillInfo.sp(level)
+    local cd = skillInfo.cooldown(level)
+    local lastTime = MyCooldown[MySkillKey][MH_STYLE_CHANGE] or 0
+
+    if not CanUseSkill(CurrentTime, lastTime, cd) then
+      return STATUS.failure
+    end
+
+    if not HasEnoughSp(sp) then
+      return STATUS.failure
+    end
+
+    local sk =
+      { level = skillInfo.level, id = MH_STYLE_CHANGE, cooldown = cd, lastTime = lastTime, currentTime = CurrentTime }
+    local casted = CastSkill(MyID, MyEnemy, sk)
+    if casted then
+      MyCooldown[MySkillKey][MH_STYLE_CHANGE] = CurrentTime
+      local newMode = BATTLE_MODE.CURRENT == BATTLE_MODE.BATTLE and BATTLE_MODE.CLAW or BATTLE_MODE.BATTLE
+      BATTLE_MODE.CURRENT = newMode
+      MyCooldown[MySkillKey][MH_STYLE_CHANGE] = CurrentTime
+      TraceAI('SWITCHED BATTLE MODE: ' .. newMode)
+      return STATUS.success
+    end
+
+    return STATUS.failure
+  end,
+}
+
+---@type Node
+local SonicCraw = {
+  update = function(_)
+    ---@type Skill
+    local skillInfo = MySkills[MySkillKey][MH_SONIC_CRAW]
+    return EleonorSkillCast(MH_SONIC_CRAW, skillInfo, BATTLE_MODE.BATTLE, 0)
+  end,
+}
+---@type Node
+local SilverVeinRush = {
+  update = function(_)
+    ---@type Skill
+    local skillInfo = MySkills[MySkillKey][MH_SILVERVEIN_RUSH]
+    return EleonorSkillCast(MH_SILVERVEIN_RUSH, skillInfo, BATTLE_MODE.BATTLE, 1)
+  end,
+}
+---@type Node
+local MidNightFrenzy = {
+  update = function(_)
+    ---@type Skill
+    local skillInfo = MySkills[MySkillKey][MH_MIDNIGHT_FRENZY]
+    return EleonorSkillCast(MH_MIDNIGHT_FRENZY, skillInfo, BATTLE_MODE.BATTLE, 1)
+  end,
+}
+
+---@type Node
+local TinderBreaker = {
+  update = function(_)
+    ---@type Skill
+    local skillInfo = MySkills[MySkillKey][MH_TINDER_BREAKER]
+    return EleonorSkillCast(MH_TINDER_BREAKER, skillInfo, BATTLE_MODE.CLAW, 0)
+  end,
+}
+---@type Node
+local CBC = {
+  update = function(_)
+    ---@type Skill
+    local skillInfo = MySkills[MySkillKey][MH_CBC]
+    return EleonorSkillCast(MH_CBC, skillInfo, BATTLE_MODE.CLAW, 2)
+  end,
+}
+local EQC = {
+  update = function(_)
+    ---@type Skill
+    local skillInfo = MySkills[MySkillKey][MH_EQC]
+    return EleonorSkillCast(MH_EQC, skillInfo, BATTLE_MODE.CLAW, 2)
+  end,
+}
+local BattleModeSequence = Sequence:new {
+  SonicCraw,
+  SilverVeinRush,
+  MidNightFrenzy,
+}
+local ClawModeSequence = Sequence:new {
+  TinderBreaker,
+  CBC,
+  EQC,
+}
+
+---@class Homunculus
+---@field BasicAttack Node
+---@field SkillAttack? Node
+---@field SkillAttackSequence? Node
+
+---@type Homunculus
+local Eleanor = {
+  BasicAttack = {
+    update = function(_)
+      local status = AttackEnemyNode:update()
+      if status == STATUS.running then
+        local maxSpheres = 5
+        if MySpheres < maxSpheres then
+          if math.random(2) == 1 then -- every attack eleanor has 25% chance to gain a sphere
+            MySpheres = MySpheres + 1
+            TraceAI('Gained a sphere! Total spheres: ' .. MySpheres)
+          end
+        end
+      end
+      if MySpheres >= 5 then
+        return STATUS.failure
+      end
+      return status
+    end,
+  },
+  SkillAttackSequence = Selector:new {
+    SwitchBattleMode,
+    BattleModeSequence,
+    ClawModeSequence,
+  },
+}
+
 ---@type Node
 local root = Selector:new {
   IdleNode,
@@ -268,33 +432,42 @@ local root = Selector:new {
   FollowNode,
 }
 
--- TODO: Homunculus Nodes
--- local Eleanor = Selector:new {
---   AttackEnemyNode,
---   AttackCombatStyle1,
---   AttackCombatStyle2,
--- }
+local EleanorCombat = Selector:new {
+  Eleanor.BasicAttack,
+  Eleanor.SkillAttackSequence,
+}
 
--- FIX: Maybe fallback is a better choice here
+local eleanorSequence = Sequence:new {
+  GetEnemyNode,
+  ChaseEnemyNode,
+  EleanorCombat,
+}
+
 local sequence = Sequence:new {
   GetEnemyNode,
   ChaseEnemyNode,
-  AttackEnemyNode, -- temporary
-  -- Eleanor,
-  -- Eira,
-  -- Sera,
-  -- Dieter
+  AttackEnemyNode,
 }
 
 function AI(myid)
+  math.randomseed(os.time())
   CurrentTime = GetTick() / 1000 -- seconds
+  TraceAI('CURRENT_TIME: ' .. CurrentTime)
   MyID = myid
   MyOwner = GetV(V_OWNER, myid)
+  local homun = GetV(V_HOMUNTYPE, myid)
+  MySkillKey = homun
+  TraceAI('HOMUN: ' .. homun)
   local cmdStatus = CommandNode:update()
   if cmdStatus == STATUS.running or cmdStatus == STATUS.success then
     return
   end
-  local status = sequence:update()
+  local status
+  if homun == ELEANOR then
+    status = eleanorSequence:update()
+  else
+    status = sequence:update()
+  end
   if status ~= STATUS.running then
     root:update()
   end

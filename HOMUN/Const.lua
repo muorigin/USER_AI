@@ -218,4 +218,107 @@ MyID = 0 -- Homunculus ID
 MySkill = 0 -- Homunculus skills
 MySkillLevel = 0 -- Homunculus skill level
 MyOwner = 0 -- Homunculus owner
-MyCooldown = {}
+MySpheres = 0 -- Eleanor only
+MySkillKey = 0
+
+---@class Cooldown
+MyCooldown = {
+  [ELEANOR] = {
+    [MH_STYLE_CHANGE] = 0,
+    [MH_SONIC_CRAW] = 0,
+    [MH_SILVERVEIN_RUSH] = 0,
+    [MH_MIDNIGHT_FRENZY] = 0,
+    [MH_TINDER_BREAKER] = 0,
+    [MH_CBC] = 0,
+    [MH_EQC] = 0,
+  },
+}
+
+---@class Skill
+---@field sp fun(level: number): number
+---@field cooldown fun(level: number): number
+---@field level_requirement number
+---@field level number
+
+---@class Skills
+MySkills = {
+  [ELEANOR] = {
+    ---@type Skill
+    [MH_STYLE_CHANGE] = {
+      cooldown = function(_)
+        return 1
+      end,
+      sp = function(_)
+        return 35
+      end,
+      level_requirement = 100,
+      level = 5,
+    },
+    ---@type Skill
+    [MH_SONIC_CRAW] = {
+      sp = function(level)
+        return math.max(1, 15 - level * 5)
+      end,
+      cooldown = function(_)
+        return 0.5
+      end,
+      level_requirement = 100,
+      level = 5,
+    },
+    ---@type Skill
+    [MH_SILVERVEIN_RUSH] = {
+      sp = function(level)
+        return math.max(1, 15 + level * 2)
+      end,
+      cooldown = function(_)
+        return 1.5
+      end,
+      level_requirement = 114,
+      level = 10,
+    },
+    ---@type Skill
+    [MH_MIDNIGHT_FRENZY] = {
+      sp = function(level)
+        return math.max(1, 15 + level * 3)
+      end,
+      cooldown = function(_)
+        return 1.5
+      end,
+      level_requirement = 128,
+      level = 128,
+    },
+    ---@type Skill
+    [MH_TINDER_BREAKER] = {
+      sp = function(level)
+        return math.max(1, 15 + level * 5)
+      end,
+      cooldown = function(_)
+        return 0.5
+      end,
+      level_requirement = 100,
+      level = 5,
+    },
+    ---@type Skill
+    [MH_CBC] = {
+      sp = function(level)
+        return math.max(1, 10 + level * 50)
+      end,
+      cooldown = function()
+        return 0.3
+      end,
+      level_requirement = 112,
+      level = 5,
+    },
+    ---@type Skill
+    [MH_EQC] = {
+      sp = function(level)
+        return math.max(1, 20 + level * 5)
+      end,
+      cooldown = function()
+        return 0.3
+      end,
+      level_requirement = 133,
+      level = 5,
+    },
+  },
+}
